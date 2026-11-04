@@ -7,3 +7,12 @@ Portanto, iremos desenvolver uma plataforma no qual o professor faz a chamada, a
 
 ## Multimodal
 O professor pode anexar uma imagem, ou uma fotografia para exemplificar ainda mais o problema.
+
+## Delimitação de chamados
+- Problema de saúde em sala, pessoal ou de aluno.
+- Má conduta, desrespeito de aluno.
+- Problema na estrutura, de qualquer seja a parte da escola.
+- Necessidade de equipamento, como caneta, tinta, folha, etc.
+- Falha em algum equipamento, como computador, ar condicionado, projetor, etc.
+- Dificuldades ao navegar no sistema (sigeduc, suap, sigaa, etc).
+- Informar falta.
