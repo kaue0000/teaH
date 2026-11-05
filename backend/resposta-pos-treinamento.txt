@@ -1,0 +1,17 @@
+{
+    "model": "llama3.2:1b",
+    "created_at": "2026-11-05T12:55:45.54050382Z",
+    "message": {
+        "role": "assistant",
+        "content": "O chamado \"Minha conta foi bloqueada\" pode ser classificado como:\n\n- ACESSO: pois envolve a tentativa de acessar ou controlar a conta bancária de outra pessoa, o que é um ato ilegal e antiético.\n- FINANCEIRO: pois envolve a gestão e o acesso a informações financeiras, como contas bancárias, depósitos, saques e outros recursos financeiros.\n- DOCUMENTOS: pois envolve a busca e acesso a documentos financeiros, como recibos, comprovantes de transações e outros documentos relacionados às contas financeiras.\n- SISTEMA: pois envolve a interação com o sistema bancário, incluindo a criação de contas, depósitos, saques e outras operações financeiras."
+    },
+    "done": true,
+    "done_reason": "stop",
+    "total_duration": 21093952812,
+    "load_duration": 4452557694,
+    "prompt_eval_count": 53,
+    "prompt_eval_cached_count": 0,
+    "prompt_eval_duration": 554099000,
+    "eval_count": 169,
+    "eval_duration": 16082278000
+}

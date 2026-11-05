@@ -6,6 +6,19 @@ services:
       - "11435:11434"
     volumes:
       - ollama-data:/root/.ollama
+      - ./backend/treinamento/output/merged:/models/llama32-suporte:ro
+      - ./backend/treinamento/Modelfile:/models/Modelfile:ro
+
+  trainer:
+    profiles: ["training"]
+    build:
+      context: ./backend/treinamento
+    environment:
+      HF_TOKEN: ${HF_TOKEN}
+      BASE_MODEL: meta-llama/Llama-3.2-1B-Instruct
+    volumes:
+      - ./backend/treinamento:/workspace
+      - huggingface-cache:/root/.cache/huggingface
 
   backend:
     image: node:22-alpine
@@ -26,3 +39,4 @@ services:
 volumes:
   backend_node_modules:
   ollama-data:
+  huggingface-cache:

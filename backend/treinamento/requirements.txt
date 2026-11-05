@@ -1,0 +1,7 @@
+transformers>=4.45,<5
+datasets>=3,<5
+peft>=0.13,<1
+trl>=0.15,<1
+accelerate>=1,<2
+safetensors>=0.4,<1
+sentencepiece>=0.2,<1
