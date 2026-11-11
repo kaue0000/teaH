@@ -8,6 +8,20 @@ Portanto, iremos desenvolver uma plataforma no qual o professor faz a chamada, a
 ## Multimodal
 O professor pode anexar uma imagem, ou uma fotografia para exemplificar ainda mais o problema.
 
+## Treinamento do modelo
+O treinamento usa `Qwen/Qwen2.5-0.5B-Instruct` por padrão, uma opção menor adequada para treinamento em CPU e que não exige token do Hugging Face:
+
+```bash
+docker compose --profile training run --rm trainer python train.py
+```
+
+Para escolher um modelo restrito, configure `BASE_MODEL` e forneça um `HF_TOKEN` autorizado. Não compartilhe nem versione o token:
+
+```bash
+BASE_MODEL=meta-llama/Llama-3.2-1B-Instruct HF_TOKEN="seu-token" \
+  docker compose --profile training run --rm trainer python train.py
+```
+
 ## Delimitação de chamados
 - Problema de saúde em sala, pessoal ou de aluno.
 - Má conduta, desrespeito de aluno.
