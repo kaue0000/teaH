@@ -3,26 +3,74 @@ services:
     image: ollama/ollama
     container_name: ollama
     ports:
-      - "11435:11434"
+      - "127.0.0.1:11435:11434"   # só depuração; pode remover
     volumes:
       - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama-init:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c", "ollama pull ${OLLAMA_MODEL:-llama3.2:3b} && ollama pull ${EMBEDDING_MODEL:-bge-m3}"]
+    restart: "no"
+
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-chamados}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-chamados}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     image: node:22-alpine
     working_dir: /app
-    command: sh -c "npm ci && npm run start:dev"
+    command: sh -c "npm ci && npm run migration:run && npm run start:dev"
     environment:
       OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: llama3.2:3b
-      OLLAMA_TIMEOUT_MS: 120000
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
+      OLLAMA_TIMEOUT_MS: ${OLLAMA_TIMEOUT_MS:-120000}
+      DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-chamados}
     ports:
       - "3001:3000"
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm start -- --host 0.0.0.0"
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
 
 volumes:
   backend_node_modules:
+  frontend_node_modules:
   ollama-data:
+  db-data:
