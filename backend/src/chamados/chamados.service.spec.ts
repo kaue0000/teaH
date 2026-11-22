@@ -27,35 +27,45 @@ describe('ChamadosService', () => {
 
   it('aceita uma categoria permitida', async () => {
     gerar.mockResolvedValue({
-      resposta: ' acesso ',
+      resposta:
+        'CATEGORIA: ACESSO\nJUSTIFICATIVA: problema para autenticar.',
       modelo: 'modelo-controlado',
     });
 
     await expect(
       service.classificar('Minha senha foi bloqueada.'),
-    ).resolves.toMatchObject({ categoria: 'ACESSO' });
+    ).resolves.toMatchObject({
+      categoria: 'ACESSO',
+      status: 'CLASSIFICADO',
+      justificativa: 'problema para autenticar.',
+    });
   });
 
-  it('rejeita categoria inventada', async () => {
+  it('representa abstenção sem inventar uma categoria', async () => {
     gerar.mockResolvedValue({
-      resposta: 'SUPORTE_TECNICO',
+      resposta:
+        'CATEGORIA: NAO_CLASSIFICADO\nJUSTIFICATIVA: faltam informações.',
+      modelo: 'modelo-controlado',
+    });
+
+    await expect(
+      service.classificar('Preciso de ajuda.'),
+    ).resolves.toMatchObject({
+      categoria: null,
+      status: 'NAO_CLASSIFICADO',
+      justificativa: 'faltam informações.',
+    });
+  });
+
+  it('rejeita categoria inventada ou resposta fora do formato', async () => {
+    gerar.mockResolvedValue({
+      resposta:
+        'CATEGORIA: SUPORTE_TECNICO\nJUSTIFICATIVA: erro no computador.',
       modelo: 'modelo-controlado',
     });
 
     await expect(
       service.classificar('O computador está lento.'),
-    ).rejects.toThrow('categoria inválida');
+    ).rejects.toThrow('formato inválido');
   });
-
-  it('rejeita explicação junto da categoria', async () => {
-    gerar.mockResolvedValue({
-      resposta: 'ACESSO porque a senha expirou',
-      modelo: 'modelo-controlado',
-    });
-
-    await expect(
-      service.classificar('Minha senha expirou.'),
-    ).rejects.toThrow('categoria inválida');
-  });
-
 });

@@ -61,3 +61,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 treinamento/output/
 treinamento/.cache/
+.venv-llama/
+llama.cpp/
+*.gguf
+__pycache__/

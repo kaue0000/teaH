@@ -3,6 +3,7 @@ import {
   BadGatewayException,
   Inject,
   Injectable,
+  Logger,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import {
@@ -12,6 +13,7 @@ import {
 import {
   buildSugestaoRespostaPrompt,
   protegerDadosSensiveis,
+  sanitizarMarcadoresChamado,
 } from './sugestao-resposta.prompt';
 import pdfParse from 'pdf-parse';
 
@@ -52,29 +54,95 @@ function mencionaCredencialInsegura(texto: string): boolean {
 const DECISAO_NAO_AUTORIZADA = [
   /\b(?:seu\s+)?(?:reembolso|acesso|benefício|beneficio)\s+(?:foi|está|esta|será|sera)\s+(?:aprovado|aprovada|autorizado|autorizada|concedido|concedida|liberado|liberada)\b/i,
   /\b(?:aprovamos|autorizamos|concedemos|liberamos|vamos\s+aprovar|iremos\s+aprovar|vamos\s+autorizar|iremos\s+autorizar|vamos\s+liberar|iremos\s+liberar)\b.{0,40}\b(?:reembolso|acesso|benefício|beneficio)\b/i,
+  /\b(?:nota|aprova[cç][aã]o)\b.{0,50}\b(?:aprovada|aprovado|confirmada|confirmado|garantida)\b/i,
+  /\b(?:aprovada|aprovado|confirmada|confirmado)\b.{0,50}\b(?:nota|aprova[cç][aã]o)\b/i,
+  /\b(?:confirmo|confirmamos|confirmei)\b.{0,50}\b(?:nota|aprova[cç][aã]o)\b/i,
 ];
 
-const PEDIDO_DADOS_ADICIONAIS =
-  /\b(?:mais\s+(?:informa(?:ção|ções)|dados|detalhes)|(?:precisa|precisamos|necessita|necessitamos)\s+(?:saber\s+mais|fornecer|enviar|informar)|(?:pode|poderia)\s+(?:fornecer|enviar|informar)|(?:envie|informe|forneça|compartilhe)\b.{0,40}\b(?:dados?|informa(?:ção|ções)|detalhes?|mensagem)|(?:qual|quais|quando|desde\s+quando)\s+(?:sistema|página|pagina|serviço|servico|mensagem|erro|problema|isso|o\s+problema))\b/i;
 const PERGUNTA_SEM_INFORMACOES_ADICIONAIS =
   'O modelo retornou uma pergunta sem informações adicionais correspondentes';
+const FRASE_PROIBIDA_NO_RASCUNHO =
+  'O modelo comentou instruções ou o funcionamento do sistema';
 const TEMPO_INVENTADO = 'O modelo retornou tempo inventado';
 const PADROES_TEMPO =
   /\b(?:desde\s+ontem|ontem|hoje|anteontem|semana\s+passada|mês\s+passado|ano\s+passado|há\s+\d+\s+dias?|nos\s+últimos\s+\d+\s+dias?|nos\s+últimos\s+\d+\s+meses?)\b/i;
+const PEDIDOS_NO_RASCUNHO =
+  /\b(?:descreva|descrever|informe|informar|poderia|pode|por\s+favor|diga|dizer|explique|explicar|envie|enviar|forneça|fornecer|indique|indicar|conte|contar|precisamos\s+(?:saber|de|receber|conhecer)|necessitamos\s+(?:saber|de)|gostaria|solicitamos)\b/i;
+const FRASES_PROIBIDAS_NO_RASCUNHO =
+  /\b(?:instruções|instrução|regras?|rascunhos?|inteligência\s+artificial|em\s+andamento|em\s+análise)\b|a\s+mensagem\s+não\s+é/i;
+const PALAVRAS_FUNCIONAIS = new Set([
+  'a',
+  'as',
+  'ao',
+  'aos',
+  'aquilo',
+  'com',
+  'da',
+  'das',
+  'de',
+  'do',
+  'dos',
+  'e',
+  'ela',
+  'ele',
+  'em',
+  'este',
+  'esta',
+  'eu',
+  'isso',
+  'meu',
+  'meus',
+  'minha',
+  'minhas',
+  'na',
+  'nas',
+  'no',
+  'nos',
+  'o',
+  'os',
+  'ou',
+  'para',
+  'por',
+  'que',
+  'se',
+  'sobre',
+  'sua',
+  'suas',
+  'seu',
+  'seus',
+  'um',
+  'uma',
+  'umas',
+  'uns',
+  'você',
+  'vocês',
+]);
+const RESPOSTA_PEDIR_DESCRICAO = {
+  rascunho:
+    'Olá. Para eu poder ajudar, poderia descrever a dúvida ou a solicitação que você deseja encaminhar?',
+  informacoesAdicionais: ['Descrição da dúvida ou da solicitação'],
+  revisaoHumanaObrigatoria: true as const,
+};
 
-function removerPedidoDeDadosAdicionais(rascunho: string): string {
-  const frases = rascunho.split(/(?<=[.!?])\s+/);
-  const frasesSemPedidos = frases.filter(
-    (frase) => !PEDIDO_DADOS_ADICIONAIS.test(frase),
+function temPedidoDeInformacao(rascunho: string): boolean {
+  return rascunho.includes('?') || PEDIDOS_NO_RASCUNHO.test(rascunho);
+}
+
+function textoCurtoDemais(texto: string): boolean {
+  const palavras =
+    texto.toLocaleLowerCase('pt-BR').match(/[a-záàâãéêíóôõúüç]+/gi) ?? [];
+  const palavrasDeConteudo = palavras.filter(
+    (palavra) => !PALAVRAS_FUNCIONAIS.has(palavra),
   );
-
-  return frasesSemPedidos.length
-    ? frasesSemPedidos.join(' ').trim()
-    : 'Reconhecemos o problema relatado. A resolução ainda não foi confirmada.';
+  return palavrasDeConteudo.length < 3;
 }
 
 function mascararDadosSensiveis(texto: string): string {
-  if (!/\b(?:senha|password|token|secret|código\s+de\s+verificação|codigo\s+de\s+verificacao|código\s+de\s+autenticação|codigo\s+de\s+autenticacao)\b/i.test(texto)) {
+  if (
+    !/\b(?:senha|password|token|secret|código\s+de\s+verificação|codigo\s+de\s+verificacao|código\s+de\s+autenticação|codigo\s+de\s+autenticacao)\b/i.test(
+      texto,
+    )
+  ) {
     return texto;
   }
 
@@ -128,11 +196,6 @@ function parseSugestaoResposta(
     typeof rascunho !== 'string' ||
     !rascunho.trim() ||
     !Array.isArray(informacoesAdicionais) ||
-    informacoesAdicionais.length > 3 ||
-    !informacoesAdicionais.every(
-      (item): item is string =>
-        typeof item === 'string' && Boolean(item.trim()),
-    ) ||
     objeto.revisaoHumanaObrigatoria !== true
   ) {
     throw new BadGatewayException(
@@ -141,10 +204,24 @@ function parseSugestaoResposta(
   }
 
   const rascunhoNormalizado = rascunho.trim();
-  const rascunhoSemPedidos = informacoesAdicionais.length
-    ? rascunhoNormalizado
-    : removerPedidoDeDadosAdicionais(rascunhoNormalizado);
-  const textos = [rascunhoSemPedidos, ...informacoesAdicionais];
+
+  if (
+    informacoesAdicionais.length > 3 ||
+    !informacoesAdicionais.every(
+      (item): item is string =>
+        typeof item === 'string' && Boolean(item.trim()),
+    )
+  ) {
+    throw new BadGatewayException(
+      'O modelo retornou uma sugestão de resposta inválida',
+    );
+  }
+
+  if (FRASES_PROIBIDAS_NO_RASCUNHO.test(rascunhoNormalizado)) {
+    throw new BadGatewayException(FRASE_PROIBIDA_NO_RASCUNHO);
+  }
+
+  const textos = [rascunhoNormalizado, ...informacoesAdicionais];
   if (
     informacoesAdicionais.some((item) => MENCIONA_CREDENCIAL.test(item)) ||
     textos.some(
@@ -159,6 +236,11 @@ function parseSugestaoResposta(
     );
   }
 
+  const temPedido = temPedidoDeInformacao(rascunhoNormalizado);
+  if (temPedido !== informacoesAdicionais.length > 0) {
+    throw new BadGatewayException(PERGUNTA_SEM_INFORMACOES_ADICIONAIS);
+  }
+
   if (
     verificarTempo &&
     PADROES_TEMPO.test(rascunhoNormalizado) &&
@@ -167,12 +249,8 @@ function parseSugestaoResposta(
     throw new BadGatewayException(TEMPO_INVENTADO);
   }
 
-  if (!informacoesAdicionais.length && rascunhoNormalizado.includes('?')) {
-    throw new BadGatewayException(PERGUNTA_SEM_INFORMACOES_ADICIONAIS);
-  }
-
   return {
-    rascunho: rascunhoSemPedidos,
+    rascunho: rascunhoNormalizado,
     informacoesAdicionais: informacoesAdicionais.map((item) => item.trim()),
     revisaoHumanaObrigatoria: true,
   };
@@ -181,18 +259,23 @@ function parseSugestaoResposta(
 @Injectable()
 export class SugestaoRespostaService {
   constructor(
-    @Inject(MODELO_PROVIDER) private readonly modelo: ModeloProvider) {}
+    @Inject(MODELO_PROVIDER) private readonly modelo: ModeloProvider,
+  ) {}
 
   async sugerirResposta(
     textoOriginal?: string,
     arquivo?: Express.Multer.File,
   ): Promise<SugestaoRespostaResultado> {
-    const texto = textoOriginal?.trim() ?? '';
+    const texto = sanitizarMarcadoresChamado(textoOriginal?.trim() ?? '');
 
     if (!texto && !arquivo) {
       throw new BadRequestException(
         'Informe o texto do chamado ou envie um arquivo',
       );
+    }
+
+    if (!arquivo && textoCurtoDemais(texto)) {
+      return this.criarRespostaFixa(texto, 'validação-local');
     }
 
     const mensagem = buildSugestaoRespostaPrompt(
@@ -235,7 +318,9 @@ export class SugestaoRespostaService {
         );
       }
 
-      textoDocumento = protegerDadosSensiveis(textoDocumento);
+      textoDocumento = protegerDadosSensiveis(
+        sanitizarMarcadoresChamado(textoDocumento),
+      );
 
       return this.sugerirComArquivo(
         mensagem,
@@ -247,6 +332,7 @@ export class SugestaoRespostaService {
     }
 
     for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+      this.registrarPrompt(mensagem);
       const resultado = await this.modelo.gerar({ mensagem, format: 'json' });
 
       try {
@@ -259,12 +345,18 @@ export class SugestaoRespostaService {
           status: 'RASCUNHO',
         };
       } catch (error) {
-        if (
-          tentativa === 0 &&
-          error instanceof BadGatewayException &&
-          error.message === PERGUNTA_SEM_INFORMACOES_ADICIONAIS
-        ) {
-          continue;
+        if (error instanceof BadGatewayException) {
+          if (
+            tentativa === 0 &&
+            (error.message === PERGUNTA_SEM_INFORMACOES_ADICIONAIS ||
+              error.message === FRASE_PROIBIDA_NO_RASCUNHO)
+          ) {
+            continue;
+          }
+
+          if (tentativa === 1 && error.message === FRASE_PROIBIDA_NO_RASCUNHO) {
+            return this.criarRespostaFixa(texto, resultado.modelo);
+          }
         }
 
         throw error;
@@ -282,6 +374,7 @@ export class SugestaoRespostaService {
     documento?: string,
   ): Promise<SugestaoRespostaResultado> {
     for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+      this.registrarPrompt(mensagem, documento);
       const resultado = await this.modelo.analisarArquivo({
         prompt: mensagem,
         ...(imagemBase64 ? { imagemBase64 } : {}),
@@ -303,12 +396,18 @@ export class SugestaoRespostaService {
           status: 'RASCUNHO',
         };
       } catch (error) {
-        if (
-          tentativa === 0 &&
-          error instanceof BadGatewayException &&
-          error.message === PERGUNTA_SEM_INFORMACOES_ADICIONAIS
-        ) {
-          continue;
+        if (error instanceof BadGatewayException) {
+          if (
+            tentativa === 0 &&
+            (error.message === PERGUNTA_SEM_INFORMACOES_ADICIONAIS ||
+              error.message === FRASE_PROIBIDA_NO_RASCUNHO)
+          ) {
+            continue;
+          }
+
+          if (tentativa === 1 && error.message === FRASE_PROIBIDA_NO_RASCUNHO) {
+            return this.criarRespostaFixa(textoOriginal, resultado.modelo);
+          }
         }
 
         throw error;
@@ -316,5 +415,32 @@ export class SugestaoRespostaService {
     }
 
     throw new BadGatewayException(PERGUNTA_SEM_INFORMACOES_ADICIONAIS);
+  }
+
+  private registrarPrompt(mensagem: string, documento?: string): void {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.NODE_ENV !== 'test'
+    ) {
+      Logger.debug(
+        JSON.stringify({
+          prompt: mensagem,
+          ...(documento ? { textoDocumento: documento } : {}),
+        }),
+        SugestaoRespostaService.name,
+      );
+    }
+  }
+
+  private criarRespostaFixa(
+    texto: string,
+    modelo: string,
+  ): SugestaoRespostaResultado {
+    return {
+      texto: mascararDadosSensiveis(sanitizarMarcadoresChamado(texto)),
+      ...RESPOSTA_PEDIR_DESCRICAO,
+      modelo,
+      status: 'RASCUNHO',
+    };
   }
 }

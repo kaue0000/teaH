@@ -1,9 +1,8 @@
 export const CHAMADO_CATEGORIAS = [
   'ACESSO',
   'FINANCEIRO',
-  'MATRICULA',
   'DOCUMENTOS',
-  'OUTROS',
+  'SISTEMA',
 ] as const;
 
 export type ChamadoCategoria =
