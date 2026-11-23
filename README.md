@@ -19,7 +19,7 @@ Auxiliar professores em atendimentos relacionados a dúvidas operacionais, regra
 5. O professor aceita ou edita ou rejeita (manda gerar novamente) o rascunho.
 6. A resposta final pode ser copiada e enviada pelo canal original.
 
-Atualmente, o backend já oferece sugestão de resposta por texto e anexos e integração com Ollama. Os recursos de autenticação, persistência completa, revisão de sugestões e RAG descritos neste documento representam a especificação planejada da plataforma.
+Atualmente, o backend já oferece sugestão de resposta por texto e anexos e integração com Ollama. A autenticação deve ser feita pelo Firebase Auth; o banco guarda o UID do Firebase associado ao perfil, sem armazenar senha. A autenticação e as demais funcionalidades ainda não estão conectadas ao backend ou ao banco.
 
 ## Funcionalidades previstas
 
@@ -77,19 +77,20 @@ A sugestão original deve permanecer registrada, permitindo distinguir respostas
 
 Após enviar o texto por WhatsApp, e-mail, SIGAA ou outro canal externo, o professor pode marcar o atendimento como respondido no sistema. Também pode registrar uma resposta manual, sem utilizar o rascunho.
 
-## Arquitetura planejada
+## Estrutura do banco de dados
 
 | Recurso | Responsabilidade |
 | --- | --- |
-| `usuarios` | Professores e alunos com papéis e permissões diferentes |
-| `documentos` | Base de conhecimento de cada professor |
-| `trechos_documento` | Pedaços de documentos e embeddings para recuperação via RAG |
+| `usuarios` | Professores e alunos, com papel, nome, e-mail e UID do Firebase Auth |
+| `documentos` | Conteúdo da base de conhecimento de cada usuário |
+| `trechos_documento` | Pedaços de documentos e embeddings vetoriais para recuperação via RAG |
 | `mensagens` | Chamados recebidos, conteúdo mascarado e estado do atendimento |
-| `sugestoes` | Rascunhos gerados pela IA e modelo utilizado |
+| `modelos_ia` | Nome e versão dos modelos usados para gerar respostas |
+| `sugestoes` | Rascunhos gerados pela IA, modelo utilizado e métricas da geração |
 | `sugestao_fontes` | Relação entre o rascunho e os trechos utilizados |
-| `revisoes` | Decisão humana, texto final e justificativa |
+| `revisoes` | Decisão humana, texto final e justificativa, inclusive respostas manuais |
 
-No planejamento, o armazenamento vetorial pode ser realizado com PostgreSQL e pgvector. Na implementação atual, o backend não persiste usuários, documentos, mensagens ou revisões.
+O esquema é criado pelo comando `npm run migration:run`, executado automaticamente na inicialização do serviço `backend` pelo Docker Compose. O banco usa PostgreSQL com pgvector. As migrações podem ser executadas manualmente na pasta `backend` após configurar `DATABASE_URL`.
 
 ## Tecnologias
 
