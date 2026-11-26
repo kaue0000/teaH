@@ -1,6 +1,6 @@
 import {
   IsEmail,
-  IsOptional,
+  IsNotEmpty,
   IsString,
   MaxLength,
   MinLength,
@@ -11,12 +11,12 @@ export class RegisterDto {
   email: string;
 
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  displayName: string;
+
+  @IsString()
   @MinLength(6)
   @MaxLength(128)
   password: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  displayName?: string;
 }

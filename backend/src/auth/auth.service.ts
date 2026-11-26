@@ -12,10 +12,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Auth } from 'firebase-admin/auth';
+import type { Auth, UserRecord } from 'firebase-admin/auth';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { FIREBASE_AUTH } from './firebase-auth.constants';
+import { UserRole } from './user-role';
 
 export interface FirebaseSignInResponse {
   localId: string;
@@ -50,18 +51,13 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
+    let user: UserRecord;
     try {
-      const user = await this.firebaseAuth.createUser({
+      user = await this.firebaseAuth.createUser({
         email: dto.email,
         password: dto.password,
-        ...(dto.displayName ? { displayName: dto.displayName } : {}),
+        displayName: dto.displayName,
       });
-
-      return {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-      };
     } catch (error) {
       const code =
         typeof error === 'object' &&
@@ -92,6 +88,37 @@ export class AuthService {
         'Não foi possível concluir o cadastro no Firebase.',
       );
     }
+
+    try {
+      await this.firebaseAuth.setCustomUserClaims(user.uid, {
+        papel: UserRole.PROFESSOR,
+      });
+    } catch (error) {
+      this.logger.error(
+        'Não foi possível definir o papel do usuário no Firebase.',
+        error instanceof Error ? error.stack : undefined,
+      );
+
+      try {
+        await this.firebaseAuth.deleteUser(user.uid);
+      } catch (cleanupError) {
+        this.logger.error(
+          `Não foi possível remover a conta ${user.uid} após falha ao definir o papel.`,
+          cleanupError instanceof Error ? cleanupError.stack : undefined,
+        );
+      }
+
+      throw new ServiceUnavailableException(
+        'Não foi possível configurar a conta no Firebase. Tente novamente.',
+      );
+    }
+
+    return {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      papel: UserRole.PROFESSOR,
+    };
   }
 
   async login(dto: LoginDto): Promise<FirebaseSignInResponse> {

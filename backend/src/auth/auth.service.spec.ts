@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 describe('AuthService', () => {
   const firebaseAuthMock = {
     createUser: jest.fn<Auth['createUser']>(),
+    setCustomUserClaims: jest.fn<Auth['setCustomUserClaims']>(),
+    deleteUser: jest.fn<Auth['deleteUser']>(),
     verifyIdToken: jest.fn<Auth['verifyIdToken']>(),
     revokeRefreshTokens: jest.fn<Auth['revokeRefreshTokens']>(),
   };
@@ -30,6 +32,7 @@ describe('AuthService', () => {
       email: 'user@example.com',
       displayName: 'Test User',
     } as Awaited<ReturnType<Auth['createUser']>>);
+    firebaseAuthMock.setCustomUserClaims.mockResolvedValue();
 
     await expect(
       service.register({
@@ -41,7 +44,12 @@ describe('AuthService', () => {
       uid: 'user-id',
       email: 'user@example.com',
       displayName: 'Test User',
+      papel: 'PROFESSOR',
     });
+    expect(firebaseAuthMock.setCustomUserClaims).toHaveBeenCalledWith(
+      'user-id',
+      { papel: 'PROFESSOR' },
+    );
   });
 
   it('does not expose Firebase credential details when permissions are missing', async () => {
@@ -55,12 +63,34 @@ describe('AuthService', () => {
       service.register({
         email: 'user@example.com',
         password: 'secure-password',
+        displayName: 'Test User',
       }),
     ).rejects.toMatchObject({
       status: 503,
       message:
         'A conta de serviço do Firebase não tem permissão para cadastrar usuários.',
     });
+  });
+
+  it('removes the Firebase account when assigning its role fails', async () => {
+    firebaseAuthMock.createUser.mockResolvedValue({
+      uid: 'user-id',
+      email: 'user@example.com',
+      displayName: 'Test User',
+    } as Awaited<ReturnType<Auth['createUser']>>);
+    firebaseAuthMock.setCustomUserClaims.mockRejectedValue(
+      new Error('Firebase claim update failed'),
+    );
+    firebaseAuthMock.deleteUser.mockResolvedValue();
+
+    await expect(
+      service.register({
+        email: 'user@example.com',
+        password: 'secure-password',
+        displayName: 'Test User',
+      }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(firebaseAuthMock.deleteUser).toHaveBeenCalledWith('user-id');
   });
 
   it('returns Firebase sign-in tokens when credentials are valid', async () => {
