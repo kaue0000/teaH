@@ -1,9 +1,13 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -30,6 +34,7 @@ interface FirebaseErrorResponse {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly apiKey: string;
 
   constructor(
@@ -90,22 +95,32 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<FirebaseSignInResponse> {
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(this.apiKey)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: dto.email,
-          password: dto.password,
-          returnSecureToken: true,
-        }),
-      },
-    );
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(this.apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: dto.email,
+            password: dto.password,
+            returnSecureToken: true,
+          }),
+        },
+      );
+    } catch {
+      throw new ServiceUnavailableException(
+        'Não foi possível conectar ao serviço de autenticação do Firebase.',
+      );
+    }
 
     if (!response.ok) {
       const result = (await response.json()) as FirebaseErrorResponse;
       const code = result.error?.message;
+      this.logger.warn(
+        `Firebase sign-in failed with HTTP ${response.status} (${code ?? 'UNKNOWN_ERROR'}).`,
+      );
 
       if (
         code === 'EMAIL_NOT_FOUND' ||
@@ -125,9 +140,24 @@ export class AuthService {
           'A autenticação do Firebase não está configurada corretamente.',
         );
       }
+      if (
+        code === 'API_KEY_SERVICE_BLOCKED' ||
+        code === 'API_KEY_HTTP_REFERRER_BLOCKED' ||
+        code === 'OPERATION_NOT_ALLOWED'
+      ) {
+        throw new ServiceUnavailableException(
+          'A chave ou o provedor de autenticação do Firebase não permite esta operação.',
+        );
+      }
+      if (code === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
+        throw new HttpException(
+          'Muitas tentativas de login. Aguarde e tente novamente.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
 
-      throw new InternalServerErrorException(
-        'O Firebase não conseguiu concluir a solicitação de autenticação.',
+      throw new BadGatewayException(
+        'O Firebase recusou a solicitação de autenticação. Consulte o código do erro no terminal do backend.',
       );
     }
 

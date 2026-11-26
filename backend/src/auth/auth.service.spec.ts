@@ -96,6 +96,32 @@ describe('AuthService', () => {
     ).rejects.toMatchObject({ status: 401 });
   });
 
+  it('reports Firebase login configuration errors as unavailable', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { message: 'OPERATION_NOT_ALLOWED' } }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      service.login({ email: 'user@example.com', password: 'password' }),
+    ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('returns a gateway error for unknown Firebase login responses', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { message: 'UNEXPECTED_FIREBASE_ERROR' } }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      service.login({ email: 'user@example.com', password: 'password' }),
+    ).rejects.toMatchObject({ status: 502 });
+  });
+
   it('revokes refresh tokens for the authenticated user on logout', async () => {
     firebaseAuthMock.verifyIdToken.mockResolvedValue({
       uid: 'user-id',
