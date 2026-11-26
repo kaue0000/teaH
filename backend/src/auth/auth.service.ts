@@ -51,12 +51,85 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
+    const user = await this.criarConta(
+      dto,
+      { papel: UserRole.ALUNO, serie: dto.serie.trim() },
+      'Não foi possível configurar o perfil do aluno no Firebase.',
+    );
+
+    return {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      serie: dto.serie.trim(),
+      papel: UserRole.ALUNO,
+    };
+  }
+
+  async promoverProfessor(uid: string) {
+    let user: UserRecord;
+    try {
+      user = await this.firebaseAuth.getUser(uid);
+    } catch (error) {
+      const code =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        typeof error.code === 'string'
+          ? error.code
+          : undefined;
+      if (code === 'auth/user-not-found') {
+        throw new BadRequestException('Não existe usuário com esse UID.');
+      }
+      throw new ServiceUnavailableException(
+        'Não foi possível carregar a conta do usuário no Firebase.',
+      );
+    }
+
+    if (user.disabled) {
+      throw new ConflictException(
+        'Não é possível promover uma conta desativada.',
+      );
+    }
+
+    try {
+      const customClaims = { ...user.customClaims };
+      delete customClaims.serie;
+      customClaims.papel = UserRole.PROFESSOR;
+      await this.firebaseAuth.setCustomUserClaims(uid, {
+        ...customClaims,
+      });
+    } catch (error) {
+      this.logger.error(
+        'Não foi possível promover o usuário para professor no Firebase.',
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new ServiceUnavailableException(
+        'Não foi possível promover o usuário. Tente novamente.',
+      );
+    }
+
+    return {
+      uid,
+      email: user.email,
+      displayName: user.displayName,
+      papel: UserRole.PROFESSOR,
+      message:
+        'Usuário promovido. Ele deve entrar novamente para atualizar o token.',
+    };
+  }
+
+  private async criarConta(
+    dto: Pick<RegisterDto, 'email' | 'password' | 'displayName'>,
+    claims: Record<string, string>,
+    mensagemFalhaClaims: string,
+  ): Promise<UserRecord> {
     let user: UserRecord;
     try {
       user = await this.firebaseAuth.createUser({
         email: dto.email,
         password: dto.password,
-        displayName: dto.displayName,
+        displayName: dto.displayName.trim(),
       });
     } catch (error) {
       const code =
@@ -90,12 +163,10 @@ export class AuthService {
     }
 
     try {
-      await this.firebaseAuth.setCustomUserClaims(user.uid, {
-        papel: UserRole.PROFESSOR,
-      });
+      await this.firebaseAuth.setCustomUserClaims(user.uid, claims);
     } catch (error) {
       this.logger.error(
-        'Não foi possível definir o papel do usuário no Firebase.',
+        mensagemFalhaClaims,
         error instanceof Error ? error.stack : undefined,
       );
 
@@ -113,12 +184,7 @@ export class AuthService {
       );
     }
 
-    return {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      papel: UserRole.PROFESSOR,
-    };
+    return user;
   }
 
   async login(dto: LoginDto): Promise<FirebaseSignInResponse> {

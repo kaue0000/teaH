@@ -1,4 +1,10 @@
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class SugerirRespostaDto {
   @IsOptional()
@@ -6,4 +12,9 @@ export class SugerirRespostaDto {
   @MinLength(10)
   @MaxLength(2000)
   texto?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[1-9]\d*$/)
+  mensagemId?: string;
 }

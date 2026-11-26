@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 describe('AuthService', () => {
   const firebaseAuthMock = {
     createUser: jest.fn<Auth['createUser']>(),
+    getUser: jest.fn<Auth['getUser']>(),
     setCustomUserClaims: jest.fn<Auth['setCustomUserClaims']>(),
     deleteUser: jest.fn<Auth['deleteUser']>(),
     verifyIdToken: jest.fn<Auth['verifyIdToken']>(),
@@ -26,7 +27,7 @@ describe('AuthService', () => {
     jest.restoreAllMocks();
   });
 
-  it('creates a Firebase user and returns only public profile fields', async () => {
+  it('registers new accounts as students with role and series claims', async () => {
     firebaseAuthMock.createUser.mockResolvedValue({
       uid: 'user-id',
       email: 'user@example.com',
@@ -39,17 +40,52 @@ describe('AuthService', () => {
         email: 'user@example.com',
         password: 'secure-password',
         displayName: 'Test User',
+        serie: '7º ano',
       }),
     ).resolves.toEqual({
       uid: 'user-id',
       email: 'user@example.com',
       displayName: 'Test User',
-      papel: 'PROFESSOR',
+      serie: '7º ano',
+      papel: 'ALUNO',
     });
     expect(firebaseAuthMock.setCustomUserClaims).toHaveBeenCalledWith(
       'user-id',
-      { papel: 'PROFESSOR' },
+      { papel: 'ALUNO', serie: '7º ano' },
     );
+  });
+
+  it('promotes an existing account and replaces its student role claim', async () => {
+    firebaseAuthMock.getUser.mockResolvedValue({
+      uid: 'student-id',
+      email: 'student@example.com',
+      displayName: 'Student Name',
+      disabled: false,
+      customClaims: { papel: 'ALUNO', serie: '7º ano', feature: 'enabled' },
+    } as Awaited<ReturnType<Auth['getUser']>>);
+    firebaseAuthMock.setCustomUserClaims.mockResolvedValue();
+
+    await expect(
+      service.promoverProfessor('student-id'),
+    ).resolves.toMatchObject({
+      uid: 'student-id',
+      papel: 'PROFESSOR',
+    });
+    expect(firebaseAuthMock.setCustomUserClaims).toHaveBeenCalledWith(
+      'student-id',
+      { papel: 'PROFESSOR', feature: 'enabled' },
+    );
+  });
+
+  it('rejects promotion of a missing Firebase account', async () => {
+    firebaseAuthMock.getUser.mockRejectedValue(
+      Object.assign(new Error('not found'), { code: 'auth/user-not-found' }),
+    );
+
+    await expect(service.promoverProfessor('unknown')).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(firebaseAuthMock.setCustomUserClaims).not.toHaveBeenCalled();
   });
 
   it('does not expose Firebase credential details when permissions are missing', async () => {
@@ -64,6 +100,7 @@ describe('AuthService', () => {
         email: 'user@example.com',
         password: 'secure-password',
         displayName: 'Test User',
+        serie: '7º ano',
       }),
     ).rejects.toMatchObject({
       status: 503,
@@ -88,6 +125,7 @@ describe('AuthService', () => {
         email: 'user@example.com',
         password: 'secure-password',
         displayName: 'Test User',
+        serie: '7º ano',
       }),
     ).rejects.toMatchObject({ status: 503 });
     expect(firebaseAuthMock.deleteUser).toHaveBeenCalledWith('user-id');
@@ -127,12 +165,14 @@ describe('AuthService', () => {
   });
 
   it('reports Firebase login configuration errors as unavailable', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ error: { message: 'OPERATION_NOT_ALLOWED' } }),
-        { status: 400 },
-      ),
-    );
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: { message: 'OPERATION_NOT_ALLOWED' } }),
+          { status: 400 },
+        ),
+      );
 
     await expect(
       service.login({ email: 'user@example.com', password: 'password' }),
@@ -140,12 +180,14 @@ describe('AuthService', () => {
   });
 
   it('returns a gateway error for unknown Firebase login responses', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ error: { message: 'UNEXPECTED_FIREBASE_ERROR' } }),
-        { status: 400 },
-      ),
-    );
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: { message: 'UNEXPECTED_FIREBASE_ERROR' } }),
+          { status: 400 },
+        ),
+      );
 
     await expect(
       service.login({ email: 'user@example.com', password: 'password' }),

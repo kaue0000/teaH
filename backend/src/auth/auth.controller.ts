@@ -8,10 +8,13 @@ import {
   UnauthorizedException,
   UsePipes,
   ValidationPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { PromoteProfessorDto } from './dto/promote-professor.dto';
 import { RegisterDto } from './dto/register.dto';
+import { FirebaseAdminGuard } from './firebase-admin.guard';
 
 @Controller('auth')
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
@@ -21,6 +24,12 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  @Post('admin/promover-professor')
+  @UseGuards(FirebaseAdminGuard)
+  promoverProfessor(@Body() dto: PromoteProfessorDto) {
+    return this.authService.promoverProfessor(dto.uid);
   }
 
   @Post('login')
