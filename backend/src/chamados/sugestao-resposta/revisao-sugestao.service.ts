@@ -86,7 +86,12 @@ export class RevisaoSugestaoService {
         UserRole.PROFESSOR,
       );
       const remetenteId = aluno
-        ? await this.obterUsuarioId(client, aluno, UserRole.ALUNO, aluno.serie)
+        ? await this.obterUsuarioId(
+            client,
+            aluno,
+            UserRole.ALUNO,
+            aluno.serie ?? undefined,
+          )
         : professorId;
       let idMensagem: string;
 

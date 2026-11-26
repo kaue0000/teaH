@@ -184,9 +184,9 @@ O backend usa por padrão a URL `http://ollama:11434`, definida pelo Docker Comp
 
 ### Cadastro e autenticação
 
-O cadastro público único recebe `displayName` (nome), `email`, `password` e
-`serie`. Toda conta nova começa com o papel `ALUNO`; o cliente não pode escolher
-o próprio papel:
+O cadastro público único recebe `displayName` (nome), `email` e `password`.
+`serie` é opcional. Toda conta nova começa com o papel `ALUNO`; o cliente não
+pode escolher o próprio papel:
 
 ```json
 {
@@ -197,8 +197,8 @@ o próprio papel:
 }
 ```
 
-O backend atribui `papel=ALUNO` e a série como custom claims do Firebase. Use
-`POST /auth/login` para obter o ID token. Para logout, envie
+O backend atribui `papel=ALUNO` e, quando informado, a série como custom claims
+do Firebase. Use `POST /auth/login` para obter o ID token. Para logout, envie
 `Authorization: Bearer <idToken>` para `POST /auth/logout`.
 
 Configure `FIREBASE_API_KEY` e `FIREBASE_SERVICE_ACCOUNT_PATH` no ambiente do
@@ -247,6 +247,8 @@ selecionado consulta o texto e o rascunho em `GET /chamados/pendentes` com seu
 ID token. Para anexos, envie `professorId`, `texto` opcional e `arquivo` como
 `multipart/form-data`. O servidor confere no Firebase que o ID é de um professor
 ativo; não confie apenas na lista exibida no navegador.
+O campo `serie` é opcional; se omitido, o professor verá o chamado sem essa
+informação.
 
 As rotas de chamados pendentes e de revisão exigem
 `Authorization: Bearer <idTokenDoProfessor>`. O token é validado pelo Firebase

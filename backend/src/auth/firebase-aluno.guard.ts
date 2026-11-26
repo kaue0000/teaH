@@ -15,21 +15,15 @@ export interface AuthenticatedAluno {
   uid: string;
   email: string;
   nome: string;
-  serie: string;
+  serie: string | null;
 }
 
 export type AlunoRequest = Request & {
   aluno: AuthenticatedAluno;
 };
 
-function isAlunoToken(token: DecodedIdToken): token is DecodedIdToken & {
-  serie: string;
-} {
-  return (
-    token.papel === UserRole.ALUNO &&
-    typeof token.serie === 'string' &&
-    Boolean(token.serie.trim())
-  );
+function isAlunoToken(token: DecodedIdToken): boolean {
+  return token.papel === UserRole.ALUNO;
 }
 
 @Injectable()
@@ -63,7 +57,10 @@ export class FirebaseAlunoGuard implements CanActivate {
       uid: token.uid,
       email: token.email,
       nome: typeof token.name === 'string' ? token.name : token.email,
-      serie: token.serie.trim(),
+      serie:
+        typeof token.serie === 'string' && token.serie.trim()
+          ? token.serie.trim()
+          : null,
     };
     return true;
   }

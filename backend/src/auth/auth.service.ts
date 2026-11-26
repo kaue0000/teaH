@@ -53,7 +53,10 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const user = await this.criarConta(
       dto,
-      { papel: UserRole.ALUNO, serie: dto.serie.trim() },
+      {
+        papel: UserRole.ALUNO,
+        ...(dto.serie ? { serie: dto.serie.trim() } : {}),
+      },
       'Não foi possível configurar o perfil do aluno no Firebase.',
     );
 
@@ -61,7 +64,7 @@ export class AuthService {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
-      serie: dto.serie.trim(),
+      ...(dto.serie ? { serie: dto.serie.trim() } : {}),
       papel: UserRole.ALUNO,
     };
   }

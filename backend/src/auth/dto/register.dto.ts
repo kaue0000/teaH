@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsOptional,
   Matches,
   IsNotEmpty,
   IsString,
@@ -11,6 +12,7 @@ export class RegisterDto {
   @IsEmail()
   email: string;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
@@ -20,7 +22,7 @@ export class RegisterDto {
   @IsNotEmpty()
   @MaxLength(50)
   @Matches(/\S/)
-  serie: string;
+  serie?: string;
 
   @IsString()
   @MinLength(6)

@@ -41,7 +41,7 @@ describe('FirebaseAlunoGuard', () => {
     });
   });
 
-  it('nega tokens sem papel de aluno ou série', async () => {
+  it('nega tokens sem papel de aluno', async () => {
     verifyIdToken.mockResolvedValue({
       uid: 'teacher-uid',
       email: 'teacher@example.com',
@@ -52,6 +52,19 @@ describe('FirebaseAlunoGuard', () => {
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  it('aceita aluno autenticado sem série e retorna série nula', async () => {
+    verifyIdToken.mockResolvedValue({
+      uid: 'student-uid',
+      email: 'student@example.com',
+      name: 'Aluno de teste',
+      papel: 'ALUNO',
+    } as Awaited<ReturnType<Auth['verifyIdToken']>>);
+    const { context, request } = criarContext('Bearer valid-token');
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request).toHaveProperty('aluno.serie', null);
   });
 
   it('nega requisições sem token', async () => {

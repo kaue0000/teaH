@@ -55,6 +55,32 @@ describe('AuthService', () => {
     );
   });
 
+  it('registers accounts without a series when one is not provided', async () => {
+    firebaseAuthMock.createUser.mockResolvedValue({
+      uid: 'teacher-candidate-id',
+      email: 'teacher@example.com',
+      displayName: 'Teacher Candidate',
+    } as Awaited<ReturnType<Auth['createUser']>>);
+    firebaseAuthMock.setCustomUserClaims.mockResolvedValue();
+
+    await expect(
+      service.register({
+        email: 'teacher@example.com',
+        password: 'secure-password',
+        displayName: 'Teacher Candidate',
+      }),
+    ).resolves.toEqual({
+      uid: 'teacher-candidate-id',
+      email: 'teacher@example.com',
+      displayName: 'Teacher Candidate',
+      papel: 'ALUNO',
+    });
+    expect(firebaseAuthMock.setCustomUserClaims).toHaveBeenCalledWith(
+      'teacher-candidate-id',
+      { papel: 'ALUNO' },
+    );
+  });
+
   it('promotes an existing account and replaces its student role claim', async () => {
     firebaseAuthMock.getUser.mockResolvedValue({
       uid: 'student-id',
