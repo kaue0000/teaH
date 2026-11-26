@@ -27,7 +27,7 @@ describe('AuthService', () => {
     jest.restoreAllMocks();
   });
 
-  it('registers new accounts as students with role and series claims', async () => {
+  it('registers new accounts as students without collecting a series', async () => {
     firebaseAuthMock.createUser.mockResolvedValue({
       uid: 'user-id',
       email: 'user@example.com',
@@ -40,43 +40,15 @@ describe('AuthService', () => {
         email: 'user@example.com',
         password: 'secure-password',
         displayName: 'Test User',
-        serie: '7º ano',
       }),
     ).resolves.toEqual({
       uid: 'user-id',
       email: 'user@example.com',
       displayName: 'Test User',
-      serie: '7º ano',
       papel: 'ALUNO',
     });
     expect(firebaseAuthMock.setCustomUserClaims).toHaveBeenCalledWith(
       'user-id',
-      { papel: 'ALUNO', serie: '7º ano' },
-    );
-  });
-
-  it('registers accounts without a series when one is not provided', async () => {
-    firebaseAuthMock.createUser.mockResolvedValue({
-      uid: 'teacher-candidate-id',
-      email: 'teacher@example.com',
-      displayName: 'Teacher Candidate',
-    } as Awaited<ReturnType<Auth['createUser']>>);
-    firebaseAuthMock.setCustomUserClaims.mockResolvedValue();
-
-    await expect(
-      service.register({
-        email: 'teacher@example.com',
-        password: 'secure-password',
-        displayName: 'Teacher Candidate',
-      }),
-    ).resolves.toEqual({
-      uid: 'teacher-candidate-id',
-      email: 'teacher@example.com',
-      displayName: 'Teacher Candidate',
-      papel: 'ALUNO',
-    });
-    expect(firebaseAuthMock.setCustomUserClaims).toHaveBeenCalledWith(
-      'teacher-candidate-id',
       { papel: 'ALUNO' },
     );
   });
@@ -87,7 +59,7 @@ describe('AuthService', () => {
       email: 'student@example.com',
       displayName: 'Student Name',
       disabled: false,
-      customClaims: { papel: 'ALUNO', serie: '7º ano', feature: 'enabled' },
+      customClaims: { papel: 'ALUNO', feature: 'enabled' },
     } as Awaited<ReturnType<Auth['getUser']>>);
     firebaseAuthMock.setCustomUserClaims.mockResolvedValue();
 
@@ -126,7 +98,6 @@ describe('AuthService', () => {
         email: 'user@example.com',
         password: 'secure-password',
         displayName: 'Test User',
-        serie: '7º ano',
       }),
     ).rejects.toMatchObject({
       status: 503,
@@ -151,7 +122,6 @@ describe('AuthService', () => {
         email: 'user@example.com',
         password: 'secure-password',
         displayName: 'Test User',
-        serie: '7º ano',
       }),
     ).rejects.toMatchObject({ status: 503 });
     expect(firebaseAuthMock.deleteUser).toHaveBeenCalledWith('user-id');

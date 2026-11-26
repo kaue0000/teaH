@@ -53,10 +53,7 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const user = await this.criarConta(
       dto,
-      {
-        papel: UserRole.ALUNO,
-        ...(dto.serie ? { serie: dto.serie.trim() } : {}),
-      },
+      { papel: UserRole.ALUNO },
       'Não foi possível configurar o perfil do aluno no Firebase.',
     );
 
@@ -64,7 +61,6 @@ export class AuthService {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
-      ...(dto.serie ? { serie: dto.serie.trim() } : {}),
       papel: UserRole.ALUNO,
     };
   }
@@ -97,7 +93,6 @@ export class AuthService {
 
     try {
       const customClaims = { ...user.customClaims };
-      delete customClaims.serie;
       customClaims.papel = UserRole.PROFESSOR;
       await this.firebaseAuth.setCustomUserClaims(uid, {
         ...customClaims,

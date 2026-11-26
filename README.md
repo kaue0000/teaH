@@ -74,7 +74,7 @@ O professor autenticado pode:
 A sugestão original deve permanecer registrada, permitindo distinguir respostas aprovadas das editadas.
 
 O professor autenticado consulta os chamados recebidos em `GET
-/chamados/pendentes`, incluindo nome e série informados no perfil do aluno.
+/chamados/pendentes`, incluindo o nome do aluno remetente.
 Para solicitar outra sugestão, envia o `mensagemId` à rota autenticada de
 geração. Rejeitar mantém o atendimento aberto; aceitar, editar ou registrar uma
 resposta manual marca-o como respondido. Depois de respondido, novas gerações
@@ -185,20 +185,19 @@ O backend usa por padrão a URL `http://ollama:11434`, definida pelo Docker Comp
 ### Cadastro e autenticação
 
 O cadastro público único recebe `displayName` (nome), `email` e `password`.
-`serie` é opcional. Toda conta nova começa com o papel `ALUNO`; o cliente não
-pode escolher o próprio papel:
+Toda conta nova começa com o papel `ALUNO`; o cliente não pode escolher o
+próprio papel:
 
 ```json
 {
   "displayName": "Nome do aluno",
   "email": "aluno@exemplo.edu",
-  "password": "senha-com-no-minimo-6-caracteres",
-  "serie": "7º ano"
+  "password": "senha-com-no-minimo-6-caracteres"
 }
 ```
 
-O backend atribui `papel=ALUNO` e, quando informado, a série como custom claims
-do Firebase. Use `POST /auth/login` para obter o ID token. Para logout, envie
+O backend atribui `papel=ALUNO` como custom claim do Firebase. Use
+`POST /auth/login` para obter o ID token. Para logout, envie
 `Authorization: Bearer <idToken>` para `POST /auth/logout`.
 
 Configure `FIREBASE_API_KEY` e `FIREBASE_SERVICE_ACCOUNT_PATH` no ambiente do
@@ -229,8 +228,8 @@ Após a promoção, o usuário deve entrar novamente para receber um ID token co
 `papel=PROFESSOR`. A lista `GET /professores` passa a incluí-lo.
 
 Depois do cadastro, o aluno usa `/auth/login` para obter o ID token. O papel
-`ALUNO` e a série são custom claims definidos pelo backend e verificados nas
-rotas de envio. O aluno autenticado carrega `GET /professores`, que lista nome e
+`ALUNO` é definido pelo backend e verificado nas rotas de envio. O aluno
+autenticado carrega `GET /professores`, que lista nome e
 `id` (Firebase UID), e envia o ID selecionado:
 
 ```json
@@ -247,15 +246,13 @@ selecionado consulta o texto e o rascunho em `GET /chamados/pendentes` com seu
 ID token. Para anexos, envie `professorId`, `texto` opcional e `arquivo` como
 `multipart/form-data`. O servidor confere no Firebase que o ID é de um professor
 ativo; não confie apenas na lista exibida no navegador.
-O campo `serie` é opcional; se omitido, o professor verá o chamado sem essa
-informação.
 
 As rotas de chamados pendentes e de revisão exigem
 `Authorization: Bearer <idTokenDoProfessor>`. O token é validado pelo Firebase
 Admin, incluindo revogação, e o custom claim `papel=PROFESSOR` é obrigatório. A
 revisão confere que o chamado pertence ao professor autenticado.
 
-O cadastro de aluno é um fluxo demonstrativo: nome e série são autodeclarados,
+O cadastro de aluno é um fluxo demonstrativo: o nome é autodeclarado,
 e autenticar uma conta Firebase não comprova a identidade escolar. Não use esses
 dados para revelar notas ou outras informações privadas. Em produção, valide a
 identidade e o vínculo escolar por integração com o sistema acadêmico, como

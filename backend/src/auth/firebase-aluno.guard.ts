@@ -15,7 +15,6 @@ export interface AuthenticatedAluno {
   uid: string;
   email: string;
   nome: string;
-  serie: string | null;
 }
 
 export type AlunoRequest = Request & {
@@ -57,10 +56,6 @@ export class FirebaseAlunoGuard implements CanActivate {
       uid: token.uid,
       email: token.email,
       nome: typeof token.name === 'string' ? token.name : token.email,
-      serie:
-        typeof token.serie === 'string' && token.serie.trim()
-          ? token.serie.trim()
-          : null,
     };
     return true;
   }

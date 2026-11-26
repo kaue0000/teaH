@@ -102,7 +102,6 @@ describe('SugestaoRespostaController', () => {
             uid: 'student-uid',
             email: 'student@example.com',
             nome: 'Aluno de Teste',
-            serie: '7º ano',
           };
           return true;
         },
@@ -303,7 +302,7 @@ describe('SugestaoRespostaController', () => {
       }),
       expect.objectContaining({ uid: 'professor-uid' }),
       undefined,
-      expect.objectContaining({ uid: 'student-uid', serie: '7º ano' }),
+      expect.objectContaining({ uid: 'student-uid', nome: 'Aluno de Teste' }),
     );
   });
 

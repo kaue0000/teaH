@@ -21,13 +21,12 @@ describe('FirebaseAlunoGuard', () => {
     verifyIdToken.mockReset();
   });
 
-  it('extrai identidade e série do perfil confiável do Firebase', async () => {
+  it('extrai a identidade do perfil confiável do Firebase', async () => {
     verifyIdToken.mockResolvedValue({
       uid: 'student-uid',
       email: 'student@example.com',
       name: 'Aluno de teste',
       papel: 'ALUNO',
-      serie: '7º ano',
     } as Awaited<ReturnType<Auth['verifyIdToken']>>);
     const { context, request } = criarContext('Bearer valid-token');
 
@@ -37,7 +36,6 @@ describe('FirebaseAlunoGuard', () => {
       uid: 'student-uid',
       email: 'student@example.com',
       nome: 'Aluno de teste',
-      serie: '7º ano',
     });
   });
 
@@ -52,19 +50,6 @@ describe('FirebaseAlunoGuard', () => {
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
-  });
-
-  it('aceita aluno autenticado sem série e retorna série nula', async () => {
-    verifyIdToken.mockResolvedValue({
-      uid: 'student-uid',
-      email: 'student@example.com',
-      name: 'Aluno de teste',
-      papel: 'ALUNO',
-    } as Awaited<ReturnType<Auth['verifyIdToken']>>);
-    const { context, request } = criarContext('Bearer valid-token');
-
-    await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(request).toHaveProperty('aluno.serie', null);
   });
 
   it('nega requisições sem token', async () => {

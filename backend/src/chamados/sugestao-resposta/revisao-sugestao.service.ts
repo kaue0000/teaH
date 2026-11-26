@@ -33,7 +33,6 @@ export interface ChamadoPendente {
   rascunho: string;
   criadoEm: Date;
   alunoNome: string | null;
-  serie: string | null;
 }
 
 @Injectable()
@@ -54,8 +53,7 @@ export class RevisaoSugestaoService {
            mensagem.conteudo_mascarado AS texto,
            sugestao.sugestao_original AS rascunho,
            mensagem.criado_em AS "criadoEm",
-           CASE WHEN aluno.papel = 'aluno' THEN aluno.nome END AS "alunoNome",
-           CASE WHEN aluno.papel = 'aluno' THEN aluno.serie END AS serie
+           CASE WHEN aluno.papel = 'aluno' THEN aluno.nome END AS "alunoNome"
          FROM mensagens AS mensagem
          JOIN usuarios AS aluno ON aluno.id = mensagem.usuario_id
          JOIN LATERAL (
@@ -86,12 +84,7 @@ export class RevisaoSugestaoService {
         UserRole.PROFESSOR,
       );
       const remetenteId = aluno
-        ? await this.obterUsuarioId(
-            client,
-            aluno,
-            UserRole.ALUNO,
-            aluno.serie ?? undefined,
-          )
+        ? await this.obterUsuarioId(client, aluno, UserRole.ALUNO)
         : professorId;
       let idMensagem: string;
 
@@ -240,16 +233,14 @@ export class RevisaoSugestaoService {
     client: PoolClient,
     perfil: AuthenticatedProfessor | AuthenticatedAluno,
     papel: UserRole,
-    serie?: string,
   ): Promise<string> {
     const resultado = await client.query<IdRow>(
-      `INSERT INTO usuarios (papel, nome, email, firebase_uid, serie)
-       VALUES ($1::usuario_papel, $2, $3, $4, $5)
+      `INSERT INTO usuarios (papel, nome, email, firebase_uid)
+       VALUES ($1::usuario_papel, $2, $3, $4)
        ON CONFLICT (firebase_uid) DO UPDATE
          SET papel = EXCLUDED.papel,
              nome = EXCLUDED.nome,
              email = EXCLUDED.email,
-             serie = EXCLUDED.serie,
              atualizado_em = NOW()
        RETURNING id`,
       [
@@ -257,7 +248,6 @@ export class RevisaoSugestaoService {
         perfil.nome,
         perfil.email,
         perfil.uid,
-        serie ?? null,
       ],
     );
     return resultado.rows[0].id;

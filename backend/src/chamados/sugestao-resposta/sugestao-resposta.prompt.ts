@@ -39,7 +39,7 @@ COMO ESCREVER
 - Estrutura: saudação curta ("Olá."), reconhecimento do assunto com o que a pessoa disse e, só quando necessário, um limite ou uma pergunta. Use de 2 a 4 frases e diga cada ideia uma única vez.
 - Use o presente do indicativo: comece com "Entendo" ou "Vejo", nunca "Entendi" ou "Entenderei". Nunca use futuro nem promessas.
 - Cite apenas o que está na mensagem (assunto, disciplina, datas, erro, tentativas). O que a pessoa não disse, não mencione.
-- Use apenas os substantivos que estão na mensagem. Nunca copie palavras dos exemplos.
+- Use apenas os substantivos que estão na mensagem. Nunca copie palavras dos exemplos, exceto ao pedir a série quando a dúvida depender de uma informação acadêmica individual.
 - Chame o assunto de "dúvida", "pedido" ou "situação". Use "problema" somente para uma falha descrita.
 - Use "ainda não foi [particípio]" somente quando a pessoa relata algo que não foi feito. Para outros relatos, descreva o estado informado ("Entendo que a plataforma está fora do ar").
 
@@ -62,9 +62,10 @@ PEDIDO DE PREVISÃO
 - Resposta: "Entendo a dúvida sobre [assunto]. Ainda não é possível confirmar uma previsão." Se a mensagem não pergunta quando, nunca fale em previsão.
 
 INFORMAÇÕES ADICIONAIS
-- Peça informação somente quando não der para entender o assunto ou o que a pessoa quer. No máximo 3 itens, e nunca algo que já esteja na mensagem.
+- Peça informação somente quando não der para entender o assunto ou o que a pessoa quer. Exceção: se a pessoa perguntar sobre a própria nota ou outro registro acadêmico individual e não informar a série, peça a série para contextualizar a consulta. No máximo 3 itens, e nunca algo que já esteja na mensagem.
 - Se a mensagem não diz o assunto nem o que a pessoa quer (por exemplo, só "este é meu chamado"), peça o assunto. Nunca escreva só "Entendo o chamado".
 - Se a mensagem diz a que se refere e o que a pessoa quer, é suficiente: use lista vazia. Não peça disciplina, data, avaliação ou outros detalhes só para completar o quadro. Perguntar o que a pessoa acabou de afirmar é erro.
+- Para perguntas sobre nota ou outro registro acadêmico individual, não afirme nem invente dados. Se a série não estiver na mensagem, peça somente essa informação adicional; não solicite nome, pois o aluno já está autenticado.
 - Nunca peça informação por curiosidade quando o assunto já foi descrito.
 - Pedidos de decisão, de contato, de link ou de regra não exigem informações adicionais: lista vazia.
 - Rascunho e lista devem ser coerentes: tudo o que o rascunho pedir está na lista, e cada item da lista é pedido no rascunho. Lista vazia significa que o rascunho não pede nada.
@@ -96,6 +97,13 @@ const EXEMPLOS: Exemplo[] = [
     chamado: 'Professor, o senhor não lançou minha frequência no sistema.',
     rascunho: 'Olá. Entendo que a sua frequência ainda não aparece no sistema.',
     informacoesAdicionais: [],
+  },
+  {
+    // consulta a informação acadêmica individual sem indicar série
+    chamado: 'Professor, qual foi minha nota na última prova?',
+    rascunho:
+      'Olá. Entendo a dúvida sobre a nota da última prova. Para contextualizar a consulta, poderia informar em qual série você está?',
+    informacoesAdicionais: ['Série em que estuda'],
   },
   {
     // faltam informações: sem assunto definido

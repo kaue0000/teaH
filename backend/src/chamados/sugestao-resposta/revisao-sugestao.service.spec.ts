@@ -18,7 +18,6 @@ describe('RevisaoSugestaoService', () => {
     uid: 'student-uid',
     email: 'student@example.com',
     nome: 'Aluno de teste',
-    serie: '7º ano',
   };
 
   function criarService(resultados: object[][]) {
@@ -43,7 +42,6 @@ describe('RevisaoSugestaoService', () => {
         rascunho: 'Sugestão gerada.',
         criadoEm: new Date('2026-11-26T10:00:00Z'),
         alunoNome: 'Aluno de teste',
-        serie: '7º ano',
       },
     ];
     const query = jest
@@ -93,7 +91,7 @@ describe('RevisaoSugestaoService', () => {
     expect(query).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining('INSERT INTO usuarios'),
-      ['professor', 'Professor', 'professor@example.com', 'firebase-uid', null],
+      ['professor', 'Professor', 'professor@example.com', 'firebase-uid'],
     );
     expect(query).toHaveBeenNthCalledWith(
       2,
@@ -139,14 +137,12 @@ describe('RevisaoSugestaoService', () => {
       'Professor',
       'professor@example.com',
       'firebase-uid',
-      null,
     ]);
     expect(query).toHaveBeenNthCalledWith(2, expect.any(String), [
       'aluno',
       'Aluno de teste',
       'student@example.com',
       'student-uid',
-      '7º ano',
     ]);
     expect(query).toHaveBeenNthCalledWith(
       3,

@@ -32,12 +32,26 @@ describe('prompt de sugestão de resposta', () => {
     expect(prompt).toContain('Falar sobre você, sobre IA');
     expect(prompt).toContain('O que a pessoa não disse, não mencione');
     expect(prompt).toContain(
-      'Use apenas os substantivos que estão na mensagem. Nunca copie palavras dos exemplos.',
+      'Use apenas os substantivos que estão na mensagem. Nunca copie palavras dos exemplos, exceto ao pedir a série',
     );
     expect(prompt).toContain(
       'Exemplo de decisão: mensagem "libere o acesso ao laboratório"',
     );
     expect(prompt).not.toContain('aprove meu trabalho');
+  });
+
+  it('orienta a pedir a série para consultas de registros acadêmicos individuais', () => {
+    const prompt = buildSugestaoRespostaPrompt(
+      'Professor, qual foi minha nota na última prova?',
+    );
+
+    expect(prompt).toContain(
+      'Se a série não estiver na mensagem, peça somente essa informação adicional',
+    );
+    expect(prompt).toContain('Série em que estuda');
+    expect(prompt).toContain(
+      'Para contextualizar a consulta, poderia informar em qual série você está?',
+    );
   });
 
   it('remove valores de credenciais antes de enviar o chamado ao modelo', () => {
