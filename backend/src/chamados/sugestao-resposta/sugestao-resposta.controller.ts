@@ -38,6 +38,12 @@ export class SugestaoRespostaController {
     private readonly professores: ProfessoresService,
   ) {}
 
+  @Get('meus')
+  @UseGuards(FirebaseAlunoGuard)
+  listarMeusChamados(@Req() request: AlunoRequest) {
+    return this.revisaoSugestao.listarChamadosDoAluno(request.aluno);
+  }
+
   @Get('pendentes')
   @UseGuards(FirebaseProfessorGuard)
   listarPendentes(@Req() request: ProfessorRequest) {

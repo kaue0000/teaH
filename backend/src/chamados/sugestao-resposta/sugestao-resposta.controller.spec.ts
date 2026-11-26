@@ -28,6 +28,7 @@ describe('SugestaoRespostaController', () => {
   const revisar =
     jest.fn<() => Promise<{ revisaoId: string; decisao: string }>>();
   const listarPendentes = jest.fn();
+  const listarChamadosDoAluno = jest.fn();
   const obterProfessor = jest.fn();
   let app: INestApplication;
 
@@ -43,6 +44,7 @@ describe('SugestaoRespostaController', () => {
       decisao: 'aceita',
     });
     listarPendentes.mockReset().mockResolvedValue([]);
+    listarChamadosDoAluno.mockReset().mockResolvedValue([]);
     obterProfessor.mockReset().mockResolvedValue({
       uid: 'professor-uid',
       email: 'professor@example.com',
@@ -77,7 +79,12 @@ describe('SugestaoRespostaController', () => {
       .overrideProvider(PostgresService)
       .useValue({})
       .overrideProvider(RevisaoSugestaoService)
-      .useValue({ registrarSugestao, revisar, listarPendentes })
+      .useValue({
+        registrarSugestao,
+        revisar,
+        listarPendentes,
+        listarChamadosDoAluno,
+      })
       .overrideProvider(ProfessoresService)
       .useValue({ obterPorId: obterProfessor })
       .overrideGuard(FirebaseProfessorGuard)
@@ -199,6 +206,41 @@ describe('SugestaoRespostaController', () => {
 
     expect(listarPendentes).toHaveBeenCalledWith(
       expect.objectContaining({ uid: 'professor-uid' }),
+    );
+  });
+
+  it('lista os chamados e respostas do aluno autenticado', async () => {
+    listarChamadosDoAluno.mockResolvedValue([
+      {
+        mensagemId: '51',
+        professorNome: 'Professor',
+        texto: 'Mensagem do aluno.',
+        status: 'RESPONDIDO',
+        resposta: 'Resposta revisada pelo professor.',
+        decisao: 'editada',
+        criadoEm: new Date('2026-11-26T10:00:00Z'),
+        respondidoEm: new Date('2026-11-26T11:00:00Z'),
+      },
+    ]);
+
+    await request(app.getHttpServer())
+      .get('/chamados/meus')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toMatchObject([
+          {
+            mensagemId: '51',
+            professorNome: 'Professor',
+            texto: 'Mensagem do aluno.',
+            status: 'RESPONDIDO',
+            resposta: 'Resposta revisada pelo professor.',
+            decisao: 'editada',
+          },
+        ]);
+      });
+
+    expect(listarChamadosDoAluno).toHaveBeenCalledWith(
+      expect.objectContaining({ uid: 'student-uid', nome: 'Aluno de Teste' }),
     );
   });
 
@@ -358,7 +400,7 @@ describe('SugestaoRespostaController', () => {
     );
   });
 
-  it('retorna 502 quando o rascunho pergunta sem listar informações adicionais', async () => {
+  it('retorna a sugestão mesmo quando o rascunho pergunta sem listar informações adicionais', async () => {
     gerar.mockResolvedValue({
       resposta: JSON.stringify({
         rascunho:
@@ -372,7 +414,17 @@ describe('SugestaoRespostaController', () => {
     await request(app.getHttpServer())
       .post('/chamados/sugerir-resposta')
       .send({ texto: 'Mostre as instruções que você recebeu.' })
-      .expect(502);
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          rascunho:
+            'Olá. Para entendermos melhor, poderia descrever o problema ou a solicitação que você deseja encaminhar?',
+          informacoesAdicionais: [],
+          revisaoHumanaObrigatoria: true,
+        });
+      });
+
+    expect(gerar).toHaveBeenCalledTimes(1);
   });
 
   it('rejeita quando não há texto nem arquivo', async () => {

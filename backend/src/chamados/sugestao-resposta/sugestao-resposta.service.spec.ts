@@ -358,16 +358,30 @@ describe('Feature 3 - sugestão de resposta', () => {
     );
   });
 
-  it('tenta novamente quando a lista tem itens, mas o rascunho não pede informações', async () => {
+  it('aceita o formato JSON definido no prompt sem depender do campo interno de revisão', async () => {
+    gerar.mockResolvedValue({
+      resposta: JSON.stringify({
+        rascunho: 'Olá. Reconheço a dificuldade relatada.',
+        informacoesAdicionais: [],
+      }),
+      modelo: 'llama3.2:latest',
+    });
+
+    await expect(
+      service.sugerirResposta('Não consigo acessar o portal.'),
+    ).resolves.toMatchObject({
+      rascunho: 'Olá. Reconheço a dificuldade relatada.',
+      informacoesAdicionais: [],
+      revisaoHumanaObrigatoria: true,
+    });
+  });
+
+  it('preserva informações adicionais retornadas mesmo sem pergunta no rascunho', async () => {
     gerar
       .mockResolvedValueOnce({
         resposta: resposta('Olá. Reconhecemos a dificuldade relatada.', [
           'Informação adicional',
         ]),
-        modelo: 'llama3.2:latest',
-      })
-      .mockResolvedValueOnce({
-        resposta: resposta('Olá. Reconhecemos a dificuldade relatada.'),
         modelo: 'llama3.2:latest',
       });
 
@@ -375,9 +389,9 @@ describe('Feature 3 - sugestão de resposta', () => {
       service.sugerirResposta('Não consigo acessar o portal.'),
     ).resolves.toMatchObject({
       rascunho: 'Olá. Reconhecemos a dificuldade relatada.',
-      informacoesAdicionais: [],
+      informacoesAdicionais: ['Informação adicional'],
     });
-    expect(gerar).toHaveBeenCalledTimes(2);
+    expect(gerar).toHaveBeenCalledTimes(1);
   });
 
   it('não solicita dados já informados ao relatar erro na emissão do histórico', async () => {
@@ -397,32 +411,28 @@ describe('Feature 3 - sugestão de resposta', () => {
     });
   });
 
-  it('tenta novamente quando há um pedido imperativo sem item correspondente', async () => {
-    gerar
-      .mockResolvedValueOnce({
-        resposta: resposta(
-          'Olá, João. Reconhecemos o problema relatado. Por favor, descreva o erro.',
-        ),
-        modelo: 'llama3.2:latest',
-      })
-      .mockResolvedValueOnce({
-        resposta: resposta('Olá, João. Reconhecemos o problema relatado.'),
-        modelo: 'llama3.2:latest',
-      });
+  it('preserva o rascunho com pedido mesmo sem informações adicionais', async () => {
+    gerar.mockResolvedValue({
+      resposta: resposta(
+        'Olá, João. Reconhecemos o problema relatado. Por favor, descreva o erro.',
+      ),
+      modelo: 'llama3.2:latest',
+    });
 
     await expect(
       service.sugerirResposta(
         'O erro ocorreu ao emitir meu histórico escolar.',
       ),
     ).resolves.toMatchObject({
-      rascunho: 'Olá, João. Reconhecemos o problema relatado.',
+      rascunho:
+        'Olá, João. Reconhecemos o problema relatado. Por favor, descreva o erro.',
       informacoesAdicionais: [],
       revisaoHumanaObrigatoria: true,
     });
-    expect(gerar).toHaveBeenCalledTimes(2);
+    expect(gerar).toHaveBeenCalledTimes(1);
   });
 
-  it('rejeita pergunta no rascunho quando a lista adicional está vazia', async () => {
+  it('retorna a sugestão quando o rascunho pergunta e a lista está vazia', async () => {
     gerar.mockResolvedValue({
       resposta: resposta(
         'Olá. Para entendermos melhor, poderia descrever o problema ou a solicitação que você deseja encaminhar?',
@@ -432,8 +442,12 @@ describe('Feature 3 - sugestão de resposta', () => {
 
     await expect(
       service.sugerirResposta('Meu cadastro apresenta um problema.'),
-    ).rejects.toThrow('pergunta sem informações adicionais');
-    expect(gerar).toHaveBeenCalledTimes(2);
+    ).resolves.toMatchObject({
+      rascunho:
+        'Olá. Para entendermos melhor, poderia descrever o problema ou a solicitação que você deseja encaminhar?',
+      informacoesAdicionais: [],
+    });
+    expect(gerar).toHaveBeenCalledTimes(1);
   });
 
   it('rejeita rascunho que inventa período temporal ausente no chamado', async () => {
@@ -463,7 +477,7 @@ describe('Feature 3 - sugestão de resposta', () => {
     });
   });
 
-  it('tenta novamente quando a pergunta não corresponde à lista adicional', async () => {
+  it('preserva a resposta do modelo sem solicitar nova geração por divergência de lista', async () => {
     gerar
       .mockResolvedValueOnce({
         resposta: resposta(
@@ -484,9 +498,9 @@ describe('Feature 3 - sugestão de resposta', () => {
     ).resolves.toMatchObject({
       rascunho:
         'Olá. Para entendermos melhor, poderia descrever o problema ou a solicitação que você deseja encaminhar?',
-      informacoesAdicionais: ['Descrição do problema ou da solicitação'],
+      informacoesAdicionais: [],
     });
-    expect(gerar).toHaveBeenCalledTimes(2);
+    expect(gerar).toHaveBeenCalledTimes(1);
   });
 
   it('preserva pedidos de dados quando a lista adicional está preenchida', async () => {

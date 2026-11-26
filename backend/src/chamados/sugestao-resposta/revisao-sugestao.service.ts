@@ -35,9 +35,63 @@ export interface ChamadoPendente {
   alunoNome: string | null;
 }
 
+export interface ChamadoAluno {
+  mensagemId: string;
+  professorNome: string | null;
+  texto: string;
+  status: 'AGUARDANDO_REVISAO' | 'RESPONDIDO';
+  criadoEm: Date;
+  resposta: string | null;
+  decisao: RevisaoDecisao | null;
+  respondidoEm: Date | null;
+}
+
 @Injectable()
 export class RevisaoSugestaoService {
   constructor(private readonly postgres: PostgresService) {}
+
+  async listarChamadosDoAluno(aluno: AuthenticatedAluno): Promise<ChamadoAluno[]> {
+    return this.postgres.transaction(async (client) => {
+      const usuarioId = await this.obterUsuarioId(
+        client,
+        aluno,
+        UserRole.ALUNO,
+      );
+      const chamados = await client.query<ChamadoAluno>(
+        `SELECT
+           mensagem.id AS "mensagemId",
+           professor.nome AS "professorNome",
+           mensagem.conteudo_mascarado AS texto,
+           CASE
+             WHEN mensagem.status = 'respondido' THEN 'RESPONDIDO'
+             ELSE 'AGUARDANDO_REVISAO'
+           END AS status,
+           mensagem.criado_em AS "criadoEm",
+           CASE
+             WHEN mensagem.status = 'respondido' THEN revisao.texto_final
+             ELSE NULL
+           END AS resposta,
+           revisao.decisao AS decisao,
+           CASE
+             WHEN mensagem.status = 'respondido' THEN revisao.criado_em
+             ELSE NULL
+           END AS "respondidoEm"
+         FROM mensagens AS mensagem
+         JOIN usuarios AS professor ON professor.id = mensagem.professor_id
+         LEFT JOIN LATERAL (
+           SELECT decisao, texto_final, criado_em
+           FROM revisoes
+           WHERE mensagem_id = mensagem.id
+           ORDER BY id DESC
+           LIMIT 1
+         ) AS revisao ON TRUE
+         WHERE mensagem.usuario_id = $1 AND mensagem.professor_id <> $1
+         ORDER BY mensagem.criado_em DESC`,
+        [usuarioId],
+      );
+      return chamados.rows;
+    });
+  }
 
   async listarPendentes(professor: AuthenticatedProfessor) {
     return this.postgres.transaction(async (client) => {

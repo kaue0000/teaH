@@ -158,7 +158,6 @@ function formatarSaida(e: Exemplo): string {
   return JSON.stringify({
     rascunho: e.rascunho,
     informacoesAdicionais: e.informacoesAdicionais,
-    revisaoHumanaObrigatoria: true,
   });
 }
 
@@ -207,8 +206,7 @@ export const SUGESTAO_RESPOSTA_SCHEMA = {
       items: { type: 'string' },
       maxItems: 3,
     },
-    revisaoHumanaObrigatoria: { type: 'boolean', enum: [true] },
   },
-  required: ['rascunho', 'informacoesAdicionais', 'revisaoHumanaObrigatoria'],
+  required: ['rascunho', 'informacoesAdicionais'],
   additionalProperties: false,
 } as const;

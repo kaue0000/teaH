@@ -59,15 +59,11 @@ const DECISAO_NAO_AUTORIZADA = [
   /\b(?:confirmo|confirmamos|confirmei)\b.{0,50}\b(?:nota|aprova[cç][aã]o)\b/i,
 ];
 
-const PERGUNTA_SEM_INFORMACOES_ADICIONAIS =
-  'O modelo retornou uma pergunta sem informações adicionais correspondentes';
 const FRASE_PROIBIDA_NO_RASCUNHO =
   'O modelo comentou instruções ou o funcionamento do sistema';
 const TEMPO_INVENTADO = 'O modelo retornou tempo inventado';
 const PADROES_TEMPO =
   /\b(?:desde\s+ontem|ontem|hoje|anteontem|semana\s+passada|mês\s+passado|ano\s+passado|há\s+\d+\s+dias?|nos\s+últimos\s+\d+\s+dias?|nos\s+últimos\s+\d+\s+meses?)\b/i;
-const PEDIDOS_NO_RASCUNHO =
-  /\b(?:descreva|descrever|informe|informar|poderia|pode|por\s+favor|diga|dizer|explique|explicar|envie|enviar|forneça|fornecer|indique|indicar|conte|contar|precisamos\s+(?:saber|de|receber|conhecer)|necessitamos\s+(?:saber|de)|gostaria|solicitamos)\b/i;
 const FRASES_PROIBIDAS_NO_RASCUNHO =
   /\b(?:instruções|instrução|regras?|rascunhos?|inteligência\s+artificial|em\s+andamento|em\s+análise)\b|a\s+mensagem\s+não\s+é/i;
 const PALAVRAS_FUNCIONAIS = new Set([
@@ -123,10 +119,6 @@ const RESPOSTA_PEDIR_DESCRICAO = {
   informacoesAdicionais: ['Descrição da dúvida ou da solicitação'],
   revisaoHumanaObrigatoria: true as const,
 };
-
-function temPedidoDeInformacao(rascunho: string): boolean {
-  return rascunho.includes('?') || PEDIDOS_NO_RASCUNHO.test(rascunho);
-}
 
 function textoCurtoDemais(texto: string): boolean {
   const palavras =
@@ -190,13 +182,17 @@ function parseSugestaoResposta(
     'informacoesAdicionais',
     'revisaoHumanaObrigatoria',
   ];
+  const revisaoHumanaInformada = Object.hasOwn(
+    objeto,
+    'revisaoHumanaObrigatoria',
+  );
 
   if (
     Object.keys(objeto).some((campo) => !camposEsperados.includes(campo)) ||
     typeof rascunho !== 'string' ||
     !rascunho.trim() ||
     !Array.isArray(informacoesAdicionais) ||
-    objeto.revisaoHumanaObrigatoria !== true
+    (revisaoHumanaInformada && objeto.revisaoHumanaObrigatoria !== true)
   ) {
     throw new BadGatewayException(
       'O modelo retornou uma sugestão de resposta inválida',
@@ -234,11 +230,6 @@ function parseSugestaoResposta(
     throw new BadGatewayException(
       'O modelo retornou conteúdo proibido na sugestão de resposta',
     );
-  }
-
-  const temPedido = temPedidoDeInformacao(rascunhoNormalizado);
-  if (temPedido !== informacoesAdicionais.length > 0) {
-    throw new BadGatewayException(PERGUNTA_SEM_INFORMACOES_ADICIONAIS);
   }
 
   if (
@@ -348,8 +339,7 @@ export class SugestaoRespostaService {
         if (error instanceof BadGatewayException) {
           if (
             tentativa === 0 &&
-            (error.message === PERGUNTA_SEM_INFORMACOES_ADICIONAIS ||
-              error.message === FRASE_PROIBIDA_NO_RASCUNHO)
+            error.message === FRASE_PROIBIDA_NO_RASCUNHO
           ) {
             continue;
           }
@@ -363,7 +353,9 @@ export class SugestaoRespostaService {
       }
     }
 
-    throw new BadGatewayException(PERGUNTA_SEM_INFORMACOES_ADICIONAIS);
+    throw new BadGatewayException(
+      'Não foi possível gerar uma sugestão de resposta válida',
+    );
   }
 
   private async sugerirComArquivo(
@@ -399,8 +391,7 @@ export class SugestaoRespostaService {
         if (error instanceof BadGatewayException) {
           if (
             tentativa === 0 &&
-            (error.message === PERGUNTA_SEM_INFORMACOES_ADICIONAIS ||
-              error.message === FRASE_PROIBIDA_NO_RASCUNHO)
+            error.message === FRASE_PROIBIDA_NO_RASCUNHO
           ) {
             continue;
           }
@@ -414,7 +405,9 @@ export class SugestaoRespostaService {
       }
     }
 
-    throw new BadGatewayException(PERGUNTA_SEM_INFORMACOES_ADICIONAIS);
+    throw new BadGatewayException(
+      'Não foi possível gerar uma sugestão de resposta válida',
+    );
   }
 
   private registrarPrompt(mensagem: string, documento?: string): void {

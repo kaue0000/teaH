@@ -66,6 +66,41 @@ describe('RevisaoSugestaoService', () => {
     );
   });
 
+  it('lista os chamados do aluno autenticado e inclui a resposta final', async () => {
+    const chamados = [
+      {
+        mensagemId: '51',
+        professorNome: 'Professor',
+        texto: 'Mensagem do aluno.',
+        status: 'RESPONDIDO',
+        criadoEm: new Date('2026-11-26T10:00:00Z'),
+        resposta: 'Resposta revisada.',
+        decisao: RevisaoDecisao.EDITADA,
+        respondidoEm: new Date('2026-11-26T11:00:00Z'),
+      },
+    ];
+    const { service, query } = criarService([[{ id: '11' }], chamados]);
+
+    await expect(service.listarChamadosDoAluno(aluno)).resolves.toEqual(
+      chamados,
+    );
+    expect(query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('INSERT INTO usuarios'),
+      ['aluno', 'Aluno de teste', 'student@example.com', 'student-uid'],
+    );
+    expect(query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining(
+        'WHERE mensagem.usuario_id = $1 AND mensagem.professor_id <> $1',
+      ),
+      ['11'],
+    );
+    expect(query.mock.calls[1]?.[0]).toContain(
+      "WHEN mensagem.status = 'respondido' THEN revisao.texto_final",
+    );
+  });
+
   it('persiste mensagem e sugestão original associadas ao professor', async () => {
     const { service, query } = criarService([
       [{ id: '3' }],
