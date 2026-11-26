@@ -89,7 +89,7 @@ Após enviar o texto por WhatsApp, e-mail, SIGAA ou outro canal externo, o profe
 | `sugestao_fontes` | Relação entre o rascunho e os trechos utilizados |
 | `revisoes` | Decisão humana, texto final e justificativa |
 
-No planejamento, o armazenamento vetorial pode ser realizado com PostgreSQL e pgvector. Na implementação atual, o backend não persiste usuários, documentos, mensagens ou revisões.
+No planejamento, o armazenamento vetorial pode ser realizado com PostgreSQL e pgvector. Na implementação atual, as contas de acesso são gerenciadas pelo Firebase Auth; o backend ainda não persiste documentos, mensagens ou revisões em um banco de dados da aplicação.
 
 ## Tecnologias
 
@@ -124,6 +124,17 @@ teah/
 docker compose up -d ollama backend
 ```
 
+O Compose também inicia o PostgreSQL com pgvector. Antes de iniciar o backend,
+ele aplica automaticamente as migrations numeradas em `backend/migrations`.
+Crie o `.env` da raiz a partir de `.env.example` e defina uma senha para
+`POSTGRES_PASSWORD`. Para aplicar as migrations sem iniciar o restante da
+aplicação:
+
+```bash
+docker compose up -d db
+docker compose run --rm --no-deps backend sh -c "npm ci && npm run migration:run"
+```
+
 Na primeira inicialização, o modelo configurado no backend precisa estar disponível no Ollama:
 
 ```bash
@@ -147,7 +158,32 @@ O backend usa por padrão a URL `http://ollama:11434`, definida pelo Docker Comp
 
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
+| `POST` | `/auth/register` | Cadastra um professor no Firebase Auth |
+| `POST` | `/auth/login` | Autentica e retorna os tokens do Firebase |
+| `POST` | `/auth/logout` | Revoga os tokens de atualização da sessão |
 | `POST` | `/chamados/sugerir-resposta` | Gera um rascunho a partir de texto ou arquivo |
+
+### Cadastro e autenticação
+
+O cadastro recebe `displayName` (nome), `email` e `password`:
+
+```json
+{
+  "displayName": "Nome do professor",
+  "email": "professor@escola.edu.br",
+  "password": "senha-com-no-minimo-6-caracteres"
+}
+```
+
+O Firebase Auth armazena nome, e-mail e credenciais. O backend atribui o papel
+`PROFESSOR` como custom claim (`papel`) no token de autenticação; esse papel não
+é aceito do cliente. No login, o Firebase retorna os tokens, incluindo o papel
+no ID token. Para sair, envie o ID token no cabeçalho
+`Authorization: Bearer <idToken>` para `/auth/logout`.
+
+Configure `FIREBASE_API_KEY` e `FIREBASE_SERVICE_ACCOUNT_PATH` no ambiente do
+backend. A conta de serviço precisa das permissões necessárias para criar
+usuários, definir custom claims e revogar tokens no Firebase Auth.
 
 ## Testes
 
