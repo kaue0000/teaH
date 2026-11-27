@@ -107,6 +107,8 @@ estão implementados.
 
 ## Tecnologias
 
+- Angular e TypeScript
+- Tailwind CSS
 - NestJS e TypeScript
 - Node.js
 - Ollama
@@ -119,6 +121,9 @@ estão implementados.
 
 ```text
 teah/
+├── frontend/
+│   ├── src/
+│   └── angular.json
 ├── backend/
 │   ├── src/
 │   │   ├── chamados/
@@ -135,7 +140,7 @@ teah/
 É necessário ter Docker e Docker Compose instalados.
 
 ```bash
-docker compose up -d ollama backend
+docker compose up -d ollama backend frontend
 ```
 
 O Compose também inicia o PostgreSQL com pgvector. Antes de iniciar o backend,
@@ -156,6 +161,19 @@ docker exec -it ollama ollama pull llama3.2:3b
 ```
 
 O backend ficará disponível em `http://localhost:3001`, usando a porta do container publicada pelo Docker Compose. O Ollama ficará disponível na porta `11435` do computador.
+O frontend ficará disponível em `http://localhost:4200`.
+
+### Execução local do frontend
+
+Na pasta `frontend`, instale as dependências e inicie o servidor Angular:
+
+```bash
+npm ci
+npm start
+```
+
+O Tailwind CSS já está configurado globalmente em `src/styles.css`. Use as classes
+Tailwind diretamente nos templates Angular.
 
 ### Execução local sem Docker
 
